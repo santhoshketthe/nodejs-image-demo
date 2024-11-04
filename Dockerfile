@@ -16,6 +16,6 @@ COPY --chown=node:node . .
 # Make sure to copy the views directory specifically if needed
 # COPY /home/ec2-user/node_project/views /home/node/app/views
 
-EXPOSE 8081
+EXPOSE 8082
 
 CMD [ "node", "app.js" ]
