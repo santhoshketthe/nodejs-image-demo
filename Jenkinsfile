@@ -31,7 +31,7 @@ if [ $(docker ps -q -f name=nodejs-docker-container) ]; then
     docker stop nodejs-docker-container
     docker rm nodejs-docker-container
 fi
-docker run -d -p 8081:8081 --name nodejs-docker-container nodejs-docker-app
+docker run -d -p 8082:8082 --name nodejs-docker-container nodejs-docker-app
 ENDSSH
                         '''
                     }
