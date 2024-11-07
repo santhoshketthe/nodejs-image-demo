@@ -4,7 +4,7 @@
 current_date_time=$(date '+%Y-%m-%d %H:%M:%S')
 
 # Define the output file
-output_file="report.csv"
+output_file="logreport.csv"
 
 # Start the report with headers
 echo "Section,Data" > $output_file
