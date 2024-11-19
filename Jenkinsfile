@@ -1,3 +1,4 @@
+/*
 pipeline {
     agent any
 
@@ -49,6 +50,7 @@ ENDSSH
         }
     }
 }
+*/
 
 /*
 pipeline {
