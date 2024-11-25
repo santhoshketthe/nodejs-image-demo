@@ -75,7 +75,7 @@ pipeline {
                     withCredentials([sshUserPrivateKey(credentialsId: 'SSHtoken', keyFileVariable: 'Key')]) {
                         // Copy the Docker image tar file to the EC2 instance
                         sh '''
-                        scp -o StrictHostKeyChecking=no -i $Key nodejs-docker-app.tar ec2-user@13.201.53.218:/home/ec2-user/
+                        scp -o StrictHostKeyChecking=no -i $Key nodejs-docker-app.tar ec2-user@13.201.53.2:/home/ec2-user/
                         '''
 
                         // SSH into the EC2 instance, load the image, and run the container
