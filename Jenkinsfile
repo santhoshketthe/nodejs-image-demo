@@ -114,7 +114,7 @@ pipeline {
         ACR_NAME = 'democontaineregistry.azurecr.io'
         IMAGE_NAME = 'sharks'
         IMAGE_TAG = "build-${BUILD_NUMBER}"
-        AZURE_CREDENTIALS = 'azure'
+        AZURE_CREDENTIALS = 'azure' // This will use the Azure service principal credentials
         AZURE_REGISTRY = 'democontaineregistry.azurecr.io'
     }
 
@@ -133,39 +133,26 @@ pipeline {
             }
         }
 
-        stage('Login to Azure ACR (First Method)') {
+        stage('Login to Azure ACR') {
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'AZURE_USERNAME', passwordVariable: 'AZURE_PASSWORD')]) {
+                    withCredentials([azureServicePrincipal(credentialsId: 'jenkins-secret', 
+                                                           clientIdVariable: 'AZURE_CLIENT_ID', 
+                                                           clientSecretVariable: 'AZURE_CLIENT_SECRET', 
+                                                           tenantIdVariable: 'AZURE_TENANT_ID')]) {
                         sh """
-                        echo \$AZURE_PASSWORD | docker login \$ACR_NAME -u \$AZURE_USERNAME --password-stdin
+                        echo \$AZURE_CLIENT_SECRET | docker login \$ACR_NAME -u \$AZURE_CLIENT_ID --password-stdin
                         """
                     }
                 }
             }
         }
 
-        stage('Push Docker Image to ACR (First Method)') {
+        stage('Push Docker Image to ACR') {
             steps {
                 script {
                     dockerImage.push()
                 }
-            }
-        }
-
-        stage('Login to Azure ACR (Second Method)') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'jenkins-secret', usernameVariable: 'AZURE_USERNAME', passwordVariable: 'AZURE_PASSWORD')]) {
-                    sh """
-                        echo \$AZURE_PASSWORD | docker login \$AZURE_REGISTRY -u \$AZURE_USERNAME --password-stdin
-                    """
-                }
-            }
-        }
-
-        stage('Push Docker Image to ACR (Second Method)') {
-            steps {
-                sh 'docker push democontaineregistry.azurecr.io/sharks:build-2'
             }
         }
 
