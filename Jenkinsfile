@@ -106,3 +106,78 @@ ENDSSH
     }
 }
 */
+
+pipeline {
+    agent any
+
+    environment {
+        // Replace with your Azure Container Registry name (e.g., myregistry.azurecr.io)
+        ACR_NAME = 'democontaineregistry.azurecr.io'
+        // Replace with your Docker image name
+        IMAGE_NAME = 'sharks'
+        // Replace with the tag (e.g., latest, build number, or custom)
+        IMAGE_TAG = 'build number'
+        // Set the Azure Service Principal credentials in Jenkins and use the ID here
+        AZURE_CREDENTIALS = 'azure'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    dockerImage = docker.build("${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG}")
+                }
+            }
+        }
+
+        stage('Login to Azure ACR') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'azure', usernameVariable: 'azureuser', passwordVariable: 'Sandeep@2303')]) {
+                        sh """
+                        echo $AZURE_PASSWORD | docker login $ACR_NAME -u $AZURE_USERNAME --password-stdin
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Push Docker Image to ACR') {
+            steps {
+                script {
+                    dockerImage.push()
+                }
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                script {
+                    sh """
+                    docker run -d -p 8082:8082 --name your-container-name ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG}
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning up local Docker resources'
+            sh 'docker system prune -f'
+        }
+        success {
+            echo 'Build and deployment successful'
+        }
+        failure {
+            echo 'Build or deployment failed'
+        }
+    }
+}
+
