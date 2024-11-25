@@ -134,17 +134,16 @@ pipeline {
         }
 
         stage('Login to Azure ACR (First Method)') {
-    steps {
-        script {
-            withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'AZURE_USERNAME', passwordVariable: 'AZURE_PASSWORD')]) {
-                sh """
-                echo \$AZURE_PASSWORD | docker login \$ACR_NAME -u \$AZURE_USERNAME --password-stdin
-                """
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'AZURE_USERNAME', passwordVariable: 'AZURE_PASSWORD')]) {
+                        sh """
+                        echo \$AZURE_PASSWORD | docker login \$ACR_NAME -u \$AZURE_USERNAME --password-stdin
+                        """
+                    }
+                }
             }
         }
-    }
-}
-
 
         stage('Push Docker Image to ACR (First Method)') {
             steps {
@@ -156,7 +155,7 @@ pipeline {
 
         stage('Login to Azure ACR (Second Method)') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'azure-service-principal', usernameVariable: 'AZURE_USERNAME', passwordVariable: 'AZURE_PASSWORD')]) {
+                withCredentials([usernamePassword(credentialsId: 'jenkins-secret', usernameVariable: 'AZURE_USERNAME', passwordVariable: 'AZURE_PASSWORD')]) {
                     sh """
                         echo \$AZURE_PASSWORD | docker login \$AZURE_REGISTRY -u \$AZURE_USERNAME --password-stdin
                     """
