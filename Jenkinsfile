@@ -134,16 +134,17 @@ pipeline {
         }
 
         stage('Login to Azure ACR (First Method)') {
-            steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: 'azure', usernameVariable: 'azureuser', passwordVariable: 'Sandeep@2303')]) {
-                        sh """
-                        echo \$AZURE_PASSWORD | docker login \$ACR_NAME -u \$AZURE_USERNAME --password-stdin
-                        """
-                    }
-                }
+    steps {
+        script {
+            withCredentials([usernamePassword(credentialsId: 'azure', usernameVariable: 'AZURE_USERNAME', passwordVariable: 'AZURE_PASSWORD')]) {
+                sh """
+                echo \$AZURE_PASSWORD | docker login \$ACR_NAME -u \$AZURE_USERNAME --password-stdin
+                """
             }
         }
+    }
+}
+
 
         stage('Push Docker Image to ACR (First Method)') {
             steps {
