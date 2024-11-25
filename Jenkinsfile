@@ -136,7 +136,7 @@ pipeline {
         stage('Login to Azure ACR (First Method)') {
     steps {
         script {
-            withCredentials([usernamePassword(credentialsId: 'azure', usernameVariable: 'AZURE_USERNAME', passwordVariable: 'AZURE_PASSWORD')]) {
+            withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'AZURE_USERNAME', passwordVariable: 'AZURE_PASSWORD')]) {
                 sh """
                 echo \$AZURE_PASSWORD | docker login \$ACR_NAME -u \$AZURE_USERNAME --password-stdin
                 """
