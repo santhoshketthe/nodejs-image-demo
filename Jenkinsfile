@@ -111,20 +111,15 @@ pipeline {
     agent any
 
     environment {
-        // Replace with your Azure Container Registry name (e.g., myregistry.azurecr.io)
         ACR_NAME = 'democontaineregistry.azurecr.io'
-        // Replace with your Docker image name
         IMAGE_NAME = 'sharks'
-        // Replace with the Jenkins build number or a custom tag
         IMAGE_TAG = "build-${BUILD_NUMBER}"
-        // Set the Azure Service Principal credentials ID in Jenkins
         AZURE_CREDENTIALS = 'azure'
     }
 
     stages {
         stage('Checkout Code') {
             steps {
-                // Pull code from the repository defined in Jenkins pipeline or job configuration
                 checkout scm
             }
         }
@@ -161,6 +156,8 @@ pipeline {
             steps {
                 script {
                     sh """
+                    docker stop sharks-container || true
+                    docker rm sharks-container || true
                     docker run -d -p 8082:8082 --name sharks-container ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG}
                     """
                 }
@@ -171,7 +168,7 @@ pipeline {
     post {
         always {
             echo 'Cleaning up local Docker resources'
-            sh 'docker system prune -f'
+            sh 'docker system prune -f || true'
         }
         success {
             echo 'Build and deployment successful'
@@ -181,3 +178,4 @@ pipeline {
         }
     }
 }
+
