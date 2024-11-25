@@ -115,15 +115,16 @@ pipeline {
         ACR_NAME = 'democontaineregistry.azurecr.io'
         // Replace with your Docker image name
         IMAGE_NAME = 'sharks'
-        // Replace with the tag (e.g., latest, build number, or custom)
-        IMAGE_TAG = 'build number'
-        // Set the Azure Service Principal credentials in Jenkins and use the ID here
+        // Replace with the Jenkins build number or a custom tag
+        IMAGE_TAG = "build-${BUILD_NUMBER}"
+        // Set the Azure Service Principal credentials ID in Jenkins
         AZURE_CREDENTIALS = 'azure'
     }
 
     stages {
-        stage('Checkout') {
+        stage('Checkout Code') {
             steps {
+                // Pull code from the repository defined in Jenkins pipeline or job configuration
                 checkout scm
             }
         }
@@ -139,7 +140,7 @@ pipeline {
         stage('Login to Azure ACR') {
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: 'azure', usernameVariable: 'azureuser', passwordVariable: 'Sandeep@2303')]) {
+                    withCredentials([usernamePassword(credentialsId: AZURE_CREDENTIALS, usernameVariable: 'AZURE_USERNAME', passwordVariable: 'AZURE_PASSWORD')]) {
                         sh """
                         echo $AZURE_PASSWORD | docker login $ACR_NAME -u $AZURE_USERNAME --password-stdin
                         """
@@ -160,7 +161,7 @@ pipeline {
             steps {
                 script {
                     sh """
-                    docker run -d -p 8082:8082 --name your-container-name ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG}
+                    docker run -d -p 8082:8082 --name sharks-container ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG}
                     """
                 }
             }
@@ -180,4 +181,3 @@ pipeline {
         }
     }
 }
-
