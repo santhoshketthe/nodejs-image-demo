@@ -111,15 +111,13 @@ pipeline {
     agent any
 
     environment {
-        ACR_NAME = 'democontaineregistry.azurecr.io'
+        REGISTRY = 'democontaineregistry.azurecr.io'
         IMAGE_NAME = 'sharks'
-        IMAGE_TAG = "build-${BUILD_NUMBER}"
-        AZURE_CREDENTIALS = 'azure' // This will use the Azure service principal credentials
-        AZURE_REGISTRY = 'democontaineregistry.azurecr.io'
+        TAG = "build-${BUILD_NUMBER}"
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('Checkout SCM') {
             steps {
                 checkout scm
             }
@@ -128,21 +126,19 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    dockerImage = docker.build("${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG}")
+                    // Build the Docker image with a unique tag
+                    echo "Building Docker image ${REGISTRY}/${IMAGE_NAME}:${TAG}"
+                    sh 'docker build -t ${REGISTRY}/${IMAGE_NAME}:${TAG} .'
                 }
             }
         }
 
         stage('Login to Azure ACR') {
             steps {
-                script {
-                    withCredentials([azureServicePrincipal(credentialsId: 'jenkins-secret', 
-                                                           clientIdVariable: 'AZURE_CLIENT_ID', 
-                                                           clientSecretVariable: 'AZURE_CLIENT_SECRET', 
-                                                           tenantIdVariable: 'AZURE_TENANT_ID')]) {
-                        sh """
-                        echo \$AZURE_CLIENT_SECRET | docker login \$ACR_NAME -u \$AZURE_CLIENT_ID --password-stdin
-                        """
+                withCredentials([usernamePassword(credentialsId: 'docker', passwordVariable: 'AZURE_CLIENT_SECRET', usernameVariable: 'AZURE_CLIENT_ID')]) {
+                    script {
+                        echo "Logging in to Azure ACR"
+                        sh 'docker login ${REGISTRY} -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET'
                     }
                 }
             }
@@ -151,7 +147,9 @@ pipeline {
         stage('Push Docker Image to ACR') {
             steps {
                 script {
-                    dockerImage.push()
+                    // Push the Docker image to Azure Container Registry
+                    echo "Pushing Docker image to ACR"
+                    sh 'docker push ${REGISTRY}/${IMAGE_NAME}:${TAG}'
                 }
             }
         }
@@ -159,26 +157,27 @@ pipeline {
         stage('Deploy Container') {
             steps {
                 script {
-                    sh """
-                    docker stop sharks-container || true
-                    docker rm sharks-container || true
-                    docker run -d -p 8082:8082 --name sharks-container ${ACR_NAME}/${IMAGE_NAME}:${IMAGE_TAG}
-                    """
+                    // Deploy the container (you can customize this step as needed)
+                    echo "Deploying container from image ${REGISTRY}/${IMAGE_NAME}:${TAG}"
+                    sh 'docker run -d --name sharks-container ${REGISTRY}/${IMAGE_NAME}:${TAG}'
                 }
+            }
+        }
+
+        stage('Declarative: Post Actions') {
+            steps {
+                echo 'Cleaning up local Docker resources'
+                sh 'docker system prune -f'
             }
         }
     }
 
     post {
-        always {
-            echo 'Cleaning up local Docker resources'
-            sh 'docker system prune -f || true'
-        }
-        success {
-            echo 'Build and deployment successful'
-        }
         failure {
             echo 'Build or deployment failed'
+        }
+        success {
+            echo 'Build and deployment succeeded'
         }
     }
 }
