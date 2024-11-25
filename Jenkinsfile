@@ -115,6 +115,7 @@ pipeline {
         IMAGE_NAME = 'sharks'
         IMAGE_TAG = "build-${BUILD_NUMBER}"
         AZURE_CREDENTIALS = 'azure'
+        AZURE_REGISTRY = 'democontaineregistry.azurecr.io'
     }
 
     stages {
@@ -132,23 +133,39 @@ pipeline {
             }
         }
 
-        stage('Login to Azure ACR') {
+        stage('Login to Azure ACR (First Method)') {
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: AZURE_CREDENTIALS, usernameVariable: 'AZURE_USERNAME', passwordVariable: 'AZURE_PASSWORD')]) {
+                    withCredentials([usernamePassword(credentialsId: 'azure', usernameVariable: 'azureuser', passwordVariable: 'Sandeep@2303')]) {
                         sh """
-                        echo $AZURE_PASSWORD | docker login $ACR_NAME -u $AZURE_USERNAME --password-stdin
+                        echo \$AZURE_PASSWORD | docker login \$ACR_NAME -u \$AZURE_USERNAME --password-stdin
                         """
                     }
                 }
             }
         }
 
-        stage('Push Docker Image to ACR') {
+        stage('Push Docker Image to ACR (First Method)') {
             steps {
                 script {
                     dockerImage.push()
                 }
+            }
+        }
+
+        stage('Login to Azure ACR (Second Method)') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'azure-service-principal', usernameVariable: 'AZURE_USERNAME', passwordVariable: 'AZURE_PASSWORD')]) {
+                    sh """
+                        echo \$AZURE_PASSWORD | docker login \$AZURE_REGISTRY -u \$AZURE_USERNAME --password-stdin
+                    """
+                }
+            }
+        }
+
+        stage('Push Docker Image to ACR (Second Method)') {
+            steps {
+                sh 'docker push democontaineregistry.azurecr.io/sharks:build-2'
             }
         }
 
@@ -178,4 +195,3 @@ pipeline {
         }
     }
 }
-
