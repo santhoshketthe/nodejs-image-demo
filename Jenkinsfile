@@ -114,6 +114,8 @@ pipeline {
         REGISTRY = 'democontaineregistry.azurecr.io'
         IMAGE_NAME = 'sharks'
         TAG = "build-${BUILD_NUMBER}"
+        CONTAINER_NAME = 'sharks-container'
+        CONTAINER_PORT = '8082'  // Change to your desired port
     }
 
     stages {
@@ -128,7 +130,7 @@ pipeline {
                 script {
                     // Build the Docker image with a unique tag
                     echo "Building Docker image ${REGISTRY}/${IMAGE_NAME}:${TAG}"
-                    sh 'docker build -t ${REGISTRY}/${IMAGE_NAME}:${TAG} .'
+                    sh "docker build -t ${REGISTRY}/${IMAGE_NAME}:${TAG} ."
                 }
             }
         }
@@ -138,7 +140,7 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'docker', passwordVariable: 'AZURE_CLIENT_SECRET', usernameVariable: 'AZURE_CLIENT_ID')]) {
                     script {
                         echo "Logging in to Azure ACR"
-                        sh 'docker login ${REGISTRY} -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET'
+                        sh "docker login ${REGISTRY} -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET"
                     }
                 }
             }
@@ -149,7 +151,7 @@ pipeline {
                 script {
                     // Push the Docker image to Azure Container Registry
                     echo "Pushing Docker image to ACR"
-                    sh 'docker push ${REGISTRY}/${IMAGE_NAME}:${TAG}'
+                    sh "docker push ${REGISTRY}/${IMAGE_NAME}:${TAG}"
                 }
             }
         }
@@ -157,14 +159,23 @@ pipeline {
         stage('Deploy Container') {
             steps {
                 script {
-                    // Deploy the container (you can customize this step as needed)
+                    // Check if the container is already running, and remove it if it is
+                    echo "Stopping and removing any existing container with the name ${CONTAINER_NAME}"
+                    sh "docker rm -f ${CONTAINER_NAME} || true"
+
+                    // Run the Docker container
                     echo "Deploying container from image ${REGISTRY}/${IMAGE_NAME}:${TAG}"
-                    sh 'docker run -d --name sharks-container ${REGISTRY}/${IMAGE_NAME}:${TAG}'
+                    sh """
+                        docker run -d \
+                        --name ${CONTAINER_NAME} \
+                        -p ${CONTAINER_PORT}:${CONTAINER_PORT} \
+                        ${REGISTRY}/${IMAGE_NAME}:${TAG}
+                    """
                 }
             }
         }
 
-        stage('Declarative: Post Actions') {
+        stage('Cleanup') {
             steps {
                 echo 'Cleaning up local Docker resources'
                 sh 'docker system prune -f'
