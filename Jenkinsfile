@@ -53,7 +53,7 @@ pipeline {
                 withCredentials([file(credentialsId: 'santhoshinstance', variable: 'PEM_FILE')]) {
                     script {
                         sh """
-                        ssh -i \$PEM_FILE ${EC2_HOST} <<EOF
+                        ssh -i \$PEM_FILE ${EC2_HOST} <<'EOF'
                             # Decompress and load the Docker image
                             gzip -d ${IMAGE_NAME}.tar.gz
                             docker load < ${IMAGE_NAME}.tar
