@@ -46,7 +46,7 @@ pipeline {
                             docker load < ${IMAGE_NAME}.tar.gz
                             docker stop ${CONTAINER_NAME} || true
                             docker rm ${CONTAINER_NAME} || true
-                            docker run -d --name ${CONTAINER_NAME} -p 80:80 ${IMAGE_NAME}:latest
+                            docker run -d --name ${CONTAINER_NAME} -p 8082:8082 ${IMAGE_NAME}:latest
                         EOF
                     """
                 }
