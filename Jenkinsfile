@@ -16,15 +16,15 @@ pipeline {
         stage('Deploy to Second EC2 Instance') {
             steps {
                 script {
-                    withCredentials([sshUserPrivateKey(credentialsId: 'SSHtoken', keyFileVariable: 'Key')]) {
+                    withCredentials([sshUserPrivateKey(credentialsId: 'f8cf1fe9-d355-4819-9c5e-318db8fe19b1', keyFileVariable: 'Key')]) {
                         // Copy the Docker image tar file to the EC2 instance
                         sh '''
-                        scp -o StrictHostKeyChecking=no -i $Key nodejs-docker-app.tar ec2-user@65.0.134.255:/home/ec2-user/
+                        scp -o StrictHostKeyChecking=no -i $Key nodejs-docker-app.tar ec2-user@35.154.5.164:/home/ec2-user/
                         '''
  
                         // SSH into the EC2 instance, load the image, and run the container
                         sh '''
-                        ssh -o StrictHostKeyChecking=no -i $Key ec2-user@65.0.134.255 << 'ENDSSH'
+                        ssh -o StrictHostKeyChecking=no -i $Key ec2-user@35.154.5.164 << 'ENDSSH'
 docker load -i /home/ec2-user/nodejs-docker-app.tar
 if [ $(docker ps -q -f name=nodejs-docker-container) ]; then
     docker stop nodejs-docker-container
