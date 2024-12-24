@@ -37,7 +37,7 @@ pipeline {
             }
         }
 
-        stage('Deploy on EC2') {
+/*stage('Deploy on EC2') {
             steps {
                 withCredentials([file(credentialsId: 'santhoshinstance', variable: 'PEM_FILE')]) {
                     script {
@@ -73,3 +73,4 @@ pipeline {
         }
     }
 }
+*/
