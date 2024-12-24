@@ -13,23 +13,27 @@ pipeline {
         }
         stage('Build Docker Image') {
             steps {
-                sh """
-                    docker build -t ${IMAGE_NAME}:latest .
-                """
+                script {
+                    sh """
+                        docker build -t ${IMAGE_NAME}:latest .
+                    """
+                }
             }
         }
         stage('Save Docker Image') {
             steps {
-                sh """
-                    docker save ${IMAGE_NAME}:latest | gzip > ${IMAGE_NAME}.tar.gz
-                """
+                script {
+                    sh """
+                        docker save ${IMAGE_NAME}:latest | gzip > ${IMAGE_NAME}.tar.gz
+                    """
+                }
             }
         }
         stage('Transfer Image to EC2') {
             steps {
                 withCredentials([file(credentialsId: 'f8cf1fe9-d355-4819-9c5e-318db8fe19b1', variable: 'Key')]) {
                     sh """
-                        scp -i $SSH_KEY ${IMAGE_NAME}.tar.gz ${EC2_HOST}:~/
+                        scp -i ${SSH_KEY} ${IMAGE_NAME}.tar.gz ${EC2_HOST}:~/
                     """
                 }
             }
@@ -38,11 +42,11 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'f8cf1fe9-d355-4819-9c5e-318db8fe19b1', variable: 'Key')]) {
                     sh """
-                        ssh -i $SSH_KEY ${EC2_HOST} << EOF
+                        ssh -i ${SSH_KEY} ${EC2_HOST} << EOF
                             docker load < ${IMAGE_NAME}.tar.gz
                             docker stop ${CONTAINER_NAME} || true
                             docker rm ${CONTAINER_NAME} || true
-                            docker run -d --name ${CONTAINER_NAME} -p 8082:8082 ${IMAGE_NAME}:latest
+                            docker run -d --name ${CONTAINER_NAME} -p 80:80 ${IMAGE_NAME}:latest
                         EOF
                     """
                 }
@@ -57,7 +61,7 @@ pipeline {
             echo "Deployment failed."
         }
         always {
-            cleanWs()
+            cleanWs()  // Clean up the workspace
         }
     }
 }
