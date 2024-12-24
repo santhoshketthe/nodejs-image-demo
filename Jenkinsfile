@@ -7,7 +7,7 @@ stage('Save Docker Image') {
 }
 stage('Transfer Image to EC2') {
     steps {
-        withCredentials([file(credentialsId: 'f8cf1fe9-d355-4819-9c5e-318db8fe19b1', variable: 'SSH_KEY')]) {
+        withCredentials([file(credentialsId: 'f8cf1fe9-d355-4819-9c5e-318db8fe19b1', variable: 'Key')]) {
             sh """
                 scp -i $SSH_KEY my-app.tar.gz ec2-user@35.154.5.164:~/
             """
