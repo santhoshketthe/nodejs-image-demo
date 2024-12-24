@@ -33,7 +33,7 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'santhoshinstance', variable: 'PEM_FILE')]) {
                     script {
-                         sh """
+                        sh """
                         # Ensure .ssh directory exists
                         mkdir -p ~/.ssh
                         chmod 700 ~/.ssh
@@ -42,7 +42,7 @@ pipeline {
                         ssh-keyscan -H 35.154.5.164 >> ~/.ssh/known_hosts
                         
                         # Transfer the Docker image to the EC2 instance
-                        scp -i $PEM_FILE ${IMAGE_NAME}.tar.gz ${EC2_HOST}:~/
+                        scp -i \$PEM_FILE ${IMAGE_NAME}.tar.gz ${EC2_HOST}:~/
                         """
                     }
                 }
@@ -53,11 +53,16 @@ pipeline {
                 withCredentials([file(credentialsId: 'santhoshinstance', variable: 'PEM_FILE')]) {
                     script {
                         sh """
-                        ssh -i $PEM_FILE ${EC2_HOST} << EOF
+                        ssh -i \$PEM_FILE ${EC2_HOST} <<EOF
+                            # Decompress and load the Docker image
                             gzip -d ${IMAGE_NAME}.tar.gz
                             docker load < ${IMAGE_NAME}.tar
+                            
+                            # Stop and remove the old container if it exists
                             docker stop ${CONTAINER_NAME} || true
                             docker rm ${CONTAINER_NAME} || true
+                            
+                            # Run the new container
                             docker run -d --name ${CONTAINER_NAME} -p 8082:8082 ${IMAGE_NAME}:latest
                         EOF
                         """
