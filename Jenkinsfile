@@ -33,9 +33,14 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'santhoshinstance', variable: 'PEM_FILE')]) {
                     script {
-                        sh """
-                        # Add EC2 host key to known_hosts to avoid host key verification failure
+                         sh """
+                        # Ensure .ssh directory exists
+                        mkdir -p ~/.ssh
+                        chmod 700 ~/.ssh
+                        
+                        # Add EC2 host key to known_hosts
                         ssh-keyscan -H 35.154.5.164 >> ~/.ssh/known_hosts
+                        
                         # Transfer the Docker image to the EC2 instance
                         scp -i $PEM_FILE ${IMAGE_NAME}.tar.gz ${EC2_HOST}:~/
                         """
