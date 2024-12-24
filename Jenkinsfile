@@ -31,7 +31,7 @@ pipeline {
         }
         stage('Transfer Image to EC2') {
             steps {
-                withCredentials([file(credentialsId: 'file-credential-id', variable: 'PEM_FILE')]) {
+                withCredentials([file(credentialsId: 'santhoshinstance', variable: 'PEM_FILE')]) {
                     sh """
                         scp -i $PEM_FILE ${IMAGE_NAME}.tar.gz ${EC2_HOST}:~/
                     """
