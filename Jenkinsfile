@@ -33,7 +33,7 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'santhoshinstance', variable: 'PEM_FILE')]) {
                     script {
-                        sh """
+                         sh """
                         # Ensure .ssh directory exists
                         mkdir -p ~/.ssh
                         chmod 700 ~/.ssh
