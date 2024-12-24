@@ -32,23 +32,31 @@ pipeline {
         stage('Transfer Image to EC2') {
             steps {
                 withCredentials([file(credentialsId: 'santhoshinstance', variable: 'PEM_FILE')]) {
-                    sh """
+                    script {
+                        sh """
+                        # Add EC2 host key to known_hosts to avoid host key verification failure
+                        ssh-keyscan -H 35.154.5.164 >> ~/.ssh/known_hosts
+                        # Transfer the Docker image to the EC2 instance
                         scp -i $PEM_FILE ${IMAGE_NAME}.tar.gz ${EC2_HOST}:~/
-                    """
+                        """
+                    }
                 }
             }
         }
         stage('Deploy on EC2') {
             steps {
                 withCredentials([file(credentialsId: 'santhoshinstance', variable: 'PEM_FILE')]) {
-                    sh """
+                    script {
+                        sh """
                         ssh -i $PEM_FILE ${EC2_HOST} << EOF
-                            docker load < ${IMAGE_NAME}.tar.gz
+                            gzip -d ${IMAGE_NAME}.tar.gz
+                            docker load < ${IMAGE_NAME}.tar
                             docker stop ${CONTAINER_NAME} || true
                             docker rm ${CONTAINER_NAME} || true
                             docker run -d --name ${CONTAINER_NAME} -p 8082:8082 ${IMAGE_NAME}:latest
                         EOF
-                    """
+                        """
+                    }
                 }
             }
         }
