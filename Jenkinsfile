@@ -1,50 +1,63 @@
 pipeline {
     agent any
- 
+    environment {
+        EC2_HOST = 'ec2-user@35.154.5.164'
+        IMAGE_NAME = 'my-app'
+        CONTAINER_NAME = 'my-app-container'
+    }
     stages {
+        stage('Checkout Latest Code') {
+            steps {
+                checkout scm
+            }
+        }
         stage('Build Docker Image') {
             steps {
-                script {
-                    // Build the Docker image locally
-                    sh 'docker build -t nodejs-docker-app .'
-                    // Save the Docker image as a tar file
-                    sh 'docker save -o nodejs-docker-app.tar nodejs-docker-app'
+                sh """
+                    docker build -t ${IMAGE_NAME}:latest .
+                """
+            }
+        }
+        stage('Save Docker Image') {
+            steps {
+                sh """
+                    docker save ${IMAGE_NAME}:latest | gzip > ${IMAGE_NAME}.tar.gz
+                """
+            }
+        }
+        stage('Transfer Image to EC2') {
+            steps {
+                withCredentials([file(credentialsId: 'f8cf1fe9-d355-4819-9c5e-318db8fe19b1', variable: 'Key')]) {
+                    sh """
+                        scp -i $SSH_KEY ${IMAGE_NAME}.tar.gz ${EC2_HOST}:~/
+                    """
                 }
             }
         }
- 
-        stage('Deploy to Second EC2 Instance') {
+        stage('Deploy on EC2') {
             steps {
-                script {
-                    withCredentials([sshUserPrivateKey(credentialsId: 'f8cf1fe9-d355-4819-9c5e-318db8fe19b1', keyFileVariable: 'Key')]) {
-                        // Copy the Docker image tar file to the EC2 instance
-                        sh '''
-                        scp -o StrictHostKeyChecking=no -i $Key nodejs-docker-app.tar ec2-user@35.154.5.164:/home/ec2-user/
-                        '''
- 
-                        // SSH into the EC2 instance, load the image, and run the container
-                        sh '''
-                        ssh -o StrictHostKeyChecking=no -i $Key ec2-user@35.154.5.164 << 'ENDSSH'
-docker load -i /home/ec2-user/nodejs-docker-app.tar
-if [ $(docker ps -q -f name=nodejs-docker-container) ]; then
-    docker stop nodejs-docker-container
-    docker rm nodejs-docker-container
-fi
-docker run -d -p 8082:8082 --name nodejs-docker-container nodejs-docker-app
-ENDSSH
-                        '''
-                    }
+                withCredentials([file(credentialsId: 'f8cf1fe9-d355-4819-9c5e-318db8fe19b1', variable: 'Key')]) {
+                    sh """
+                        ssh -i $SSH_KEY ${EC2_HOST} << EOF
+                            docker load < ${IMAGE_NAME}.tar.gz
+                            docker stop ${CONTAINER_NAME} || true
+                            docker rm ${CONTAINER_NAME} || true
+                            docker run -d --name ${CONTAINER_NAME} -p 8082:8082 ${IMAGE_NAME}:latest
+                        EOF
+                    """
                 }
             }
         }
     }
- 
     post {
         success {
-            echo 'Node.js Docker application deployed successfully on the EC2 instance!'
+            echo "Deployment completed successfully!"
         }
         failure {
-            echo 'Deployment failed. Please check the logs for details.'
+            echo "Deployment failed."
+        }
+        always {
+            cleanWs()
         }
     }
 }
