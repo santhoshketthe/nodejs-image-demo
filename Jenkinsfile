@@ -8,41 +8,37 @@ pipeline {
     stages {
         stage('Checkout Latest Code') {
             steps {
-                checkout scm // Pulls the latest code from the Git repository configured in Jenkins
+                checkout scm
             }
         }
         stage('Build Docker Image') {
             steps {
-                script {
-                    sh """
-                        docker build -t ${IMAGE_NAME}:latest .
-                    """
-                }
+                sh """
+                    docker build -t ${IMAGE_NAME}:latest .
+                """
             }
         }
         stage('Save Docker Image') {
             steps {
-                script {
-                    sh """
-                        docker save ${IMAGE_NAME}:latest | gzip > ${IMAGE_NAME}.tar.gz
-                    """
-                }
+                sh """
+                    docker save ${IMAGE_NAME}:latest | gzip > ${IMAGE_NAME}.tar.gz
+                """
             }
         }
         stage('Transfer Image to EC2') {
             steps {
-                script {
+                withCredentials([file(credentialsId: 'f8cf1fe9-d355-4819-9c5e-318db8fe19b1', variable: 'SSH_KEY')]) {
                     sh """
-                        scp -i ${SSH_KEY_PATH} ${IMAGE_NAME}.tar.gz ${EC2_HOST}:~/
+                        scp -i $SSH_KEY ${IMAGE_NAME}.tar.gz ${EC2_HOST}:~/
                     """
                 }
             }
         }
         stage('Deploy on EC2') {
             steps {
-                script {
+                withCredentials([file(credentialsId: 'f8cf1fe9-d355-4819-9c5e-318db8fe19b1', variable: 'SSH_KEY')]) {
                     sh """
-                        ssh -i ${SSH_KEY_PATH} ${EC2_HOST} << EOF
+                        ssh -i $SSH_KEY ${EC2_HOST} << EOF
                             docker load < ${IMAGE_NAME}.tar.gz
                             docker stop ${CONTAINER_NAME} || true
                             docker rm ${CONTAINER_NAME} || true
@@ -61,7 +57,7 @@ pipeline {
             echo "Deployment failed."
         }
         always {
-            cleanWs() // Clean up the workspace
+            cleanWs()
         }
     }
 }
