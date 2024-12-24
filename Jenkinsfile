@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        EC2_HOST = 'ec2-user@35.154.5.164'
+        EC2_HOST = 'ec2-user@35.154.5.164' // Replace with your EC2 instance's public IP/hostname
         IMAGE_NAME = 'my-app'
         CONTAINER_NAME = 'my-app-container'
     }
@@ -31,18 +31,18 @@ pipeline {
         }
         stage('Transfer Image to EC2') {
             steps {
-                withCredentials([file(credentialsId: 'f8cf1fe9-d355-4819-9c5e-318db8fe19b1', variable: 'Key')]) {
+                withCredentials([file(credentialsId: 'file-credential-id', variable: 'PEM_FILE')]) {
                     sh """
-                        scp -i ${SSH_KEY} ${IMAGE_NAME}.tar.gz ${EC2_HOST}:~/
+                        scp -i $PEM_FILE ${IMAGE_NAME}.tar.gz ${EC2_HOST}:~/
                     """
                 }
             }
         }
         stage('Deploy on EC2') {
             steps {
-                withCredentials([file(credentialsId: 'f8cf1fe9-d355-4819-9c5e-318db8fe19b1', variable: 'Key')]) {
+                withCredentials([file(credentialsId: 'santhoshinstance', variable: 'PEM_FILE')]) {
                     sh """
-                        ssh -i ${SSH_KEY} ${EC2_HOST} << EOF
+                        ssh -i $PEM_FILE ${EC2_HOST} << EOF
                             docker load < ${IMAGE_NAME}.tar.gz
                             docker stop ${CONTAINER_NAME} || true
                             docker rm ${CONTAINER_NAME} || true
