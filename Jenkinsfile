@@ -36,13 +36,13 @@ pipeline {
         }
         stage('Deploy on EC2') {
             steps {
-                withCredentials([file(credentialsId: 'f8cf1fe9-d355-4819-9c5e-318db8fe19b1', variable: 'SSH_KEY')]) {
+                withCredentials([file(credentialsId: 'f8cf1fe9-d355-4819-9c5e-318db8fe19b1', variable: 'Key')]) {
                     sh """
                         ssh -i $SSH_KEY ${EC2_HOST} << EOF
                             docker load < ${IMAGE_NAME}.tar.gz
                             docker stop ${CONTAINER_NAME} || true
                             docker rm ${CONTAINER_NAME} || true
-                            docker run -d --name ${CONTAINER_NAME} -p 80:80 ${IMAGE_NAME}:latest
+                            docker run -d --name ${CONTAINER_NAME} -p 8082:8082 ${IMAGE_NAME}:latest
                         EOF
                     """
                 }
