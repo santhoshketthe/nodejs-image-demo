@@ -20,15 +20,6 @@ pipeline {
                 }
             }
         }
-        stage('Save Docker Image') {
-            steps {
-                script {
-                    sh """
-                        docker save ${IMAGE_NAME}:latest | gzip > ${IMAGE_NAME}.tar.gz
-                    """
-                }
-            }
-        }
         stage('Transfer Image to EC2') {
             steps {
                 withCredentials([file(credentialsId: 'santhoshinstance', variable: 'PEM_FILE')]) {
@@ -40,7 +31,8 @@ pipeline {
                         # Add EC2 host key to known_hosts
                         ssh-keyscan -H 35.154.5.164 >> ~/.ssh/known_hosts
                         
-                        # Transfer the Docker image to the EC2 instance
+                        # Save Docker image directly and transfer to EC2
+                        docker save ${IMAGE_NAME}:latest | gzip > ${IMAGE_NAME}.tar.gz
                         scp -i \$PEM_FILE ${IMAGE_NAME}.tar.gz ${EC2_HOST}:~/
                         """
                     }
@@ -55,10 +47,10 @@ pipeline {
                         ssh -i \$PEM_FILE ${EC2_HOST} <<'EOF'
                             set -e
                             
-                            # Delete any old .tar.gz file to avoid conflicts
+                            # Remove any old Docker image file
                             rm -f ${IMAGE_NAME}.tar.gz
                             
-                            # Decompress and load the Docker image
+                            # Load the Docker image
                             gzip -d ${IMAGE_NAME}.tar.gz
                             docker load < ${IMAGE_NAME}.tar
                             
