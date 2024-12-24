@@ -37,6 +37,32 @@ pipeline {
             }
         }
 
+        stage('Deploy on EC2') {
+            steps {
+                withCredentials([file(credentialsId: 'santhoshinstance', variable: 'PEM_FILE')]) {
+                    script {
+                        // Deploy the image on EC2
+                        sh """
+                        ssh -i \$PEM_FILE ec2-user@${EC2_HOST} <<'EOF'
+                            set -e
+
+                            # Unzip and load the Docker image
+                            gzip -d ${IMAGE_NAME}.tar.gz
+                            docker load < ${IMAGE_NAME}.tar
+
+                            # Stop and remove the old container if it exists
+                            docker stop ${CONTAINER_NAME} || true
+                            docker rm ${CONTAINER_NAME} || true
+
+                            # Run the new container
+                            docker run -d --name ${CONTAINER_NAME} -p 8082:8082 ${IMAGE_NAME}:latest
+                        EOF
+                        """
+                    }
+                }
+            }
+        }
+
         stage('Post Actions') {
             steps {
                 cleanWs()
