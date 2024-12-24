@@ -1,71 +1,72 @@
 pipeline {
     agent any
- 
+
     environment {
-        IMAGE_NAME = 'nodejs-docker-app'
-        CONTAINER_NAME = 'nodejs-docker-container'
-        REMOTE_USER = 'ec2-user'
-        REMOTE_HOST = '35.154.5.164' // Replace with your EC2 instance public IP or hostname
-        SSH_CREDENTIALS_ID = 'AWS' // Replace with your Jenkins SSH credentials ID
-        APP_PORT = '8082' // Application port
+        IMAGE_NAME = 'my-app'
+        CONTAINER_NAME = 'my-app-container'
+        EC2_HOST = '35.154.5.164'  // Replace with your EC2 instance IP
     }
- 
+
     stages {
+        stage('Checkout SCM') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build the Docker image locally
-                    sh "docker build -t ${IMAGE_NAME} ."
-                   
-                    // Save the Docker image as a tar file
-                    sh "docker save -o ${IMAGE_NAME}.tar ${IMAGE_NAME}"
+                    // Build the Docker image
+                    sh 'docker build -t ${IMAGE_NAME}:latest .'
                 }
             }
         }
- 
+
         stage('Transfer Image to EC2') {
             steps {
-                script {
-                    withCredentials([sshUserPrivateKey(credentialsId: 'AWS', keyFileVariable: 'Key')]) {
-                        // Copy the Docker image tar file to the EC2 instance
+                withCredentials([file(credentialsId: 'santhoshinstance', variable: 'PEM_FILE')]) {
+                    script {
+                        // Prepare the image file for transfer
                         sh """
-                        scp -o StrictHostKeyChecking=no -i $SSH_KEY ${IMAGE_NAME}.tar ${REMOTE_USER}@${REMOTE_HOST}:/home/${REMOTE_USER}/
+                        docker save ${IMAGE_NAME}:latest | gzip > ${IMAGE_NAME}.tar.gz
+                        scp -i \$PEM_FILE ${IMAGE_NAME}.tar.gz ec2-user@${EC2_HOST}:~/
                         """
                     }
                 }
             }
         }
- 
+
         stage('Deploy on EC2') {
             steps {
-                script {
-                    withCredentials([sshUserPrivateKey(credentialsId: 'AWS', keyFileVariable: 'Key')]) {
-                        // SSH into the EC2 instance, load the image, and deploy the container
+                withCredentials([file(credentialsId: 'santhoshinstance', variable: 'PEM_FILE')]) {
+                    script {
+                        // Deploy the image on EC2
                         sh """
-                        ssh -o StrictHostKeyChecking=no -i $SSH_KEY ${REMOTE_USER}@${REMOTE_HOST} << EOF
-                            docker load -i /home/${REMOTE_USER}/${IMAGE_NAME}.tar
-                            if [ \$(docker ps -q -f name=${CONTAINER_NAME}) ]; then
-                                docker stop ${CONTAINER_NAME}
-                                docker rm ${CONTAINER_NAME}
-                            fi
-                            docker run -d -p ${APP_PORT}:${APP_PORT} --name ${CONTAINER_NAME} ${IMAGE_NAME}
+                        ssh -i \$PEM_FILE ec2-user@${EC2_HOST} <<'EOF'
+                            set -e
+
+                            # Unzip and load the Docker image
+                            gzip -d ${IMAGE_NAME}.tar.gz
+                            docker load < ${IMAGE_NAME}.tar
+
+                            # Stop and remove the old container if it exists
+                            docker stop ${CONTAINER_NAME} || true
+                            docker rm ${CONTAINER_NAME} || true
+
+                            # Run the new container
+                            docker run -d --name ${CONTAINER_NAME} -p 8082:8082 ${IMAGE_NAME}:latest
                         EOF
                         """
                     }
                 }
             }
         }
-    }
- 
-    post {
-        success {
-            echo "Node.js Docker application deployed successfully on the EC2 instance!"
-        }
-        failure {
-            echo "Deployment failed. Please check the logs for details."
-        }
-        always {
-            cleanWs() // Clean up workspace
+
+        stage('Post Actions') {
+            steps {
+                cleanWs()
+            }
         }
     }
 }
