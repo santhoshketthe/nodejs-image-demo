@@ -1,194 +1,135 @@
-/*
 pipeline {
-    agent any
 
-    stages {
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    // Build the Docker image locally
-                    sh 'docker build -t nodejs-docker-app .'
-                    
-                    // Save the Docker image as a tar file
-                    sh 'docker save -o nodejs-docker-app.tar nodejs-docker-app'
-                }
-            }
-        }
-
-        stage('Deploy to Second EC2 Instance') {
-            steps {
-                script {
-                    withCredentials([sshUserPrivateKey(credentialsId: 'SSHtoken', keyFileVariable: 'Key')]) {
-                        // Copy the Docker image tar file to the EC2 instance
-                        sh '''
-                        scp -o StrictHostKeyChecking=no -i $Key nodejs-docker-app.tar ec2-user@65.0.134.255:/home/ec2-user/
-                        '''
-
-                        // SSH into the EC2 instance, load the image, and run the container
-                        sh '''
-                        ssh -o StrictHostKeyChecking=no -i $Key ec2-user@65.0.134.255 << 'ENDSSH'
-docker load -i /home/ec2-user/nodejs-docker-app.tar
-if [ $(docker ps -q -f name=nodejs-docker-container) ]; then
-    docker stop nodejs-docker-container
-    docker rm nodejs-docker-container
-fi
-docker run -d -p 8082:8082 --name nodejs-docker-container nodejs-docker-app
-ENDSSH
-                        '''
-                    }
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            echo 'Node.js Docker application deployed successfully on the EC2 instance!'
-        }
-        failure {
-            echo 'Deployment failed. Please check the logs for details.'
-        }
-    }
-}
-*/
-
-/*
-pipeline {
-    agent any
-
-    stages {
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    // Build the Docker image locally
-                    sh 'docker build -t nodejs-docker-app .'
-                    
-                    // Save the Docker image as a tar file
-                    sh 'docker save -o nodejs-docker-app.tar nodejs-docker-app'
-                }
-            }
-        }
-
-        stage('Deploy to Second EC2 Instance') {
-            steps {
-                script {
-                    withCredentials([sshUserPrivateKey(credentialsId: 'SSHtoken', keyFileVariable: 'Key')]) {
-                        // Copy the Docker image tar file to the EC2 instance
-                        sh '''
-                        scp -o StrictHostKeyChecking=no -i $Key nodejs-docker-app.tar ec2-user@13.201.53.2:/home/ec2-user/
-                        '''
-
-                        // SSH into the EC2 instance, load the image, and run the container
-                        sh '''
-                        ssh -o StrictHostKeyChecking=no -i $Key ec2-user@13.201.53.218 << 'ENDSSH'
-docker load -i /home/ec2-user/nodejs-docker-app.tar
-
-# Stop and remove any existing container with the same name
-docker rm -f nodejs-docker-container || true
-
-# Run the new container
-docker run -d -p 8081:8081 --name nodejs-docker-container nodejs-docker-app:latest
-ENDSSH
-                        '''
-                    }
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            echo 'Node.js Docker application deployed successfully on the EC2 instance!'
-        }
-        failure {
-            echo 'Deployment failed. Please check the logs for details.'
-        }
-    }
-}
-*/
-
-pipeline {
     agent any
 
     environment {
-        REGISTRY = 'democontaineregistry.azurecr.io'
-        IMAGE_NAME = 'sharks'
-        TAG = "build-${BUILD_NUMBER}"
-        CONTAINER_NAME = 'sharks-container'
-        CONTAINER_PORT = '8082'  // Change to your desired port
+
+        EC2_HOST = 'ec2-user@35.154.5.164'
+
+        IMAGE_NAME = 'my-app'
+
+        CONTAINER_NAME = 'my-app-container'
+
     }
 
     stages {
-        stage('Checkout SCM') {
+
+        stage('Checkout Latest Code') {
+
             steps {
-                checkout scm
+
+                checkout scm // Pulls the latest code from the Git repository configured in Jenkins
+
             }
+
         }
 
         stage('Build Docker Image') {
+
             steps {
+
                 script {
-                    // Build the Docker image with a unique tag
-                    echo "Building Docker image ${REGISTRY}/${IMAGE_NAME}:${TAG}"
-                    sh "docker build -t ${REGISTRY}/${IMAGE_NAME}:${TAG} ."
-                }
-            }
-        }
 
-        stage('Login to Azure ACR') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'docker', passwordVariable: 'AZURE_CLIENT_SECRET', usernameVariable: 'AZURE_CLIENT_ID')]) {
-                    script {
-                        echo "Logging in to Azure ACR"
-                        sh "docker login ${REGISTRY} -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET"
-                    }
-                }
-            }
-        }
-
-        stage('Push Docker Image to ACR') {
-            steps {
-                script {
-                    // Push the Docker image to Azure Container Registry
-                    echo "Pushing Docker image to ACR"
-                    sh "docker push ${REGISTRY}/${IMAGE_NAME}:${TAG}"
-                }
-            }
-        }
-
-        stage('Deploy Container') {
-            steps {
-                script {
-                    // Check if the container is already running, and remove it if it is
-                    echo "Stopping and removing any existing container with the name ${CONTAINER_NAME}"
-                    sh "docker rm -f ${CONTAINER_NAME} || true"
-
-                    // Run the Docker container
-                    echo "Deploying container from image ${REGISTRY}/${IMAGE_NAME}:${TAG}"
                     sh """
-                        docker run -d \
-                        --name ${CONTAINER_NAME} \
-                        -p ${CONTAINER_PORT}:${CONTAINER_PORT} \
-                        ${REGISTRY}/${IMAGE_NAME}:${TAG}
+
+                        docker build -t ${IMAGE_NAME}:latest .
+
                     """
+
                 }
+
             }
+
         }
 
-        stage('Cleanup') {
+        stage('Save Docker Image') {
+
             steps {
-                echo 'Cleaning up local Docker resources'
-                sh 'docker system prune -f'
+
+                script {
+
+                    sh """
+
+                        docker save ${IMAGE_NAME}:latest | gzip > ${IMAGE_NAME}.tar.gz
+
+                    """
+
+                }
+
             }
+
         }
+
+        stage('Transfer Image to EC2') {
+
+            steps {
+
+                script {
+
+                    sh """
+
+                        scp -i ${SSH_KEY_PATH} ${IMAGE_NAME}.tar.gz ${EC2_HOST}:~/
+
+                    """
+
+                }
+
+            }
+
+        }
+
+        stage('Deploy on EC2') {
+
+            steps {
+
+                script {
+
+                    sh """
+
+                        ssh -i ${SSH_KEY_PATH} ${EC2_HOST} << EOF
+
+                            docker load < ${IMAGE_NAME}.tar.gz
+
+                            docker stop ${CONTAINER_NAME} || true
+
+                            docker rm ${CONTAINER_NAME} || true
+
+                            docker run -d --name ${CONTAINER_NAME} -p 8082:8082 ${IMAGE_NAME}:latest
+
+                        EOF
+
+                    """
+
+                }
+
+            }
+
+        }
+
     }
 
     post {
-        failure {
-            echo 'Build or deployment failed'
-        }
+
         success {
-            echo 'Build and deployment succeeded'
+
+            echo "Deployment completed successfully!"
+
         }
+
+        failure {
+
+            echo "Deployment failed."
+
+        }
+
+        always {
+
+            cleanWs() // Clean up the workspace
+
+        }
+
     }
+
 }
+
+ 
