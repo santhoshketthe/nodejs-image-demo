@@ -33,8 +33,7 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'santhoshinstance', variable: 'PEM_FILE')]) {
                     script {
-                         sh """
-                        # Ensure .ssh directory exists
+                        sh """
                         mkdir -p ~/.ssh
                         chmod 700 ~/.ssh
                         
@@ -53,8 +52,11 @@ pipeline {
                 withCredentials([file(credentialsId: 'santhoshinstance', variable: 'PEM_FILE')]) {
                     script {
                         sh """
-                        ssh -i \$PEM_FILE ${EC2_HOST} <<EOF
+                        ssh -i \$PEM_FILE ${EC2_HOST} <<'EOF'
                             set -e
+                            
+                            # Delete any old .tar.gz file to avoid conflicts
+                            rm -f ${IMAGE_NAME}.tar.gz
                             
                             # Decompress and load the Docker image
                             gzip -d ${IMAGE_NAME}.tar.gz
