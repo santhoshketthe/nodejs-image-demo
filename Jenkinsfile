@@ -26,7 +26,7 @@ pipeline {
         stage('Transfer Image to EC2') {
             steps {
                 script {
-                    withCredentials([sshUserPrivateKey(credentialsId: 'AWS', keyFileVariable: 'Key')]) {
+                    withCredentials([sshUserPrivateKey(credentialsId: AWS, keyFileVariable: 'Key')]) {
                         // Copy the Docker image tar file to the EC2 instance
                         sh """
                         scp -o StrictHostKeyChecking=no -i $SSH_KEY ${IMAGE_NAME}.tar ${REMOTE_USER}@${REMOTE_HOST}:/home/${REMOTE_USER}/
@@ -39,7 +39,7 @@ pipeline {
         stage('Deploy on EC2') {
             steps {
                 script {
-                    withCredentials([sshUserPrivateKey(credentialsId: 'AWS', keyFileVariable: 'Key')]) {
+                    withCredentials([sshUserPrivateKey(credentialsId: AWS, keyFileVariable: 'Key')]) {
                         // SSH into the EC2 instance, load the image, and deploy the container
                         sh """
                         ssh -o StrictHostKeyChecking=no -i $SSH_KEY ${REMOTE_USER}@${REMOTE_HOST} << EOF
